@@ -48,9 +48,23 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState('');
 
-  // Load existing log if date matches
+  // Load checklist and details on selectedDate or checklistItems change
   useEffect(() => {
     const existingLog = logs.find((l) => l.date === selectedDate);
+
+    const logChecklist = existingLog?.checklist || [];
+    const logChecklistMap = new Map(logChecklist.map((c) => [c.itemId, c.completed]));
+
+    // We want the daily checklist to show:
+    // - Any master habit that is currently active (active: true)
+    // - PLUS any habit that was already completed/recorded in this day's log
+    const mergedChecklist = checklistItems
+      .filter((item) => item.active || logChecklistMap.has(item.id))
+      .map((item) => ({
+        itemId: item.id,
+        completed: logChecklistMap.get(item.id) || false,
+      }));
+
     if (existingLog) {
       // Load Time
       const getHours = (cat: TimeCategory) => existingLog.time.find((t) => t.category === cat)?.hours ?? 0;
@@ -60,13 +74,12 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({
       setLeisure(getHours('leisure'));
       setDistraction(getHours('distraction'));
 
-      // Load Money, Attention & Checklist
+      // Load Money & Attention
       setMoneyEntries(existingLog.money);
       setFocus(existingLog.focus);
       setEnergy(existingLog.energy);
       setDistractionFactor(existingLog.distractionFactor);
       setNotes(existingLog.notes);
-      setDailyChecklist(existingLog.checklist || []);
     } else {
       // Reset to defaults
       setSleep(7.5);
@@ -79,29 +92,10 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({
       setEnergy(7);
       setDistractionFactor(4);
       setNotes('');
-
-      // Build daily checklist from active master habits
-      const initialChecklist = checklistItems
-        .filter((item) => item.active)
-        .map((item) => ({ itemId: item.id, completed: false }));
-      setDailyChecklist(initialChecklist);
     }
+
+    setDailyChecklist(mergedChecklist);
   }, [selectedDate, logs, checklistItems]);
-
-  // Adjust daily checklist items if master habits list is altered dynamically
-  useEffect(() => {
-    const existingLog = logs.find((l) => l.date === selectedDate);
-    if (!existingLog) {
-      const activeItems = checklistItems.filter((item) => item.active);
-      setDailyChecklist((prev) => {
-        const prevMap = new Map(prev.map((p) => [p.itemId, p.completed]));
-        return activeItems.map((item) => ({
-          itemId: item.id,
-          completed: prevMap.get(item.id) || false,
-        }));
-      });
-    }
-  }, [checklistItems, selectedDate, logs]);
 
   const totalTimeHours = sleep + work + routine + leisure + distraction;
 
