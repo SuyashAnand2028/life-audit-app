@@ -33,6 +33,7 @@ export interface PillarAverages {
   totalWants: number;
   totalInvestments: number;
   savingsRate: number; // percentage
+  avgChecklistCompletion: number; // average percentage completed
 }
 
 export function calculateAverages(logs: DailyLog[]): PillarAverages {
@@ -50,6 +51,7 @@ export function calculateAverages(logs: DailyLog[]): PillarAverages {
     totalWants: 0,
     totalInvestments: 0,
     savingsRate: 0,
+    avgChecklistCompletion: 0,
   };
 
   if (count === 0) return defaults;
@@ -65,6 +67,7 @@ export function calculateAverages(logs: DailyLog[]): PillarAverages {
   let needsTotal = 0;
   let wantsTotal = 0;
   let investmentsTotal = 0;
+  let checklistCompletionTotal = 0;
 
   logs.forEach((log) => {
     log.time.forEach((t) => {
@@ -84,6 +87,11 @@ export function calculateAverages(logs: DailyLog[]): PillarAverages {
     focusTotal += log.focus;
     energyTotal += log.energy;
     distFactorTotal += log.distractionFactor;
+
+    const checklistLength = log.checklist?.length || 0;
+    const completedCount = log.checklist?.filter((c) => c.completed).length || 0;
+    const completionRate = checklistLength > 0 ? (completedCount / checklistLength) * 100 : 0;
+    checklistCompletionTotal += completionRate;
   });
 
   const totalMoney = needsTotal + wantsTotal + investmentsTotal;
@@ -101,6 +109,7 @@ export function calculateAverages(logs: DailyLog[]): PillarAverages {
     totalWants: wantsTotal,
     totalInvestments: investmentsTotal,
     savingsRate: totalMoney > 0 ? (investmentsTotal / totalMoney) * 100 : 0,
+    avgChecklistCompletion: checklistCompletionTotal / count,
   };
 }
 
@@ -240,6 +249,39 @@ export function generateInsights(logs: DailyLog[]): RuleInsight[] {
       pillar: 'money',
       title: 'Super-Saver Status',
       message: `Outstanding savings rate of ${avgs.savingsRate.toFixed(1)}%! You are successfully building long-term financial security.`,
+    });
+  }
+
+  // Checklist & Focus correlations
+  const checklistCompletion = logs.map((l) => {
+    const total = l.checklist?.length || 0;
+    const completed = l.checklist?.filter((c) => c.completed).length || 0;
+    return total > 0 ? (completed / total) * 100 : 0;
+  });
+  const checklistFocusCorr = calculateCorrelation(checklistCompletion, focusScores);
+
+  if (checklistFocusCorr > 0.4) {
+    insights.push({
+      type: 'positive',
+      pillar: 'attention',
+      title: 'Habit Consistency Booster',
+      message: `We found a strong positive correlation (${checklistFocusCorr.toFixed(2)}) between completing your habits and daily focus. Ticking off your tasks directly sets a productive tone.`,
+    });
+  }
+
+  if (avgs.avgChecklistCompletion > 80) {
+    insights.push({
+      type: 'positive',
+      pillar: 'attention',
+      title: 'Habit Mastery',
+      message: `Excellent consistency! You complete an average of ${avgs.avgChecklistCompletion.toFixed(0)}% of your habits daily. Keep this momentum.`,
+    });
+  } else if (avgs.avgChecklistCompletion < 50 && avgs.avgChecklistCompletion > 0) {
+    insights.push({
+      type: 'negative',
+      pillar: 'attention',
+      title: 'Checklist Slippage',
+      message: `Your habit completion rate is averaging ${avgs.avgChecklistCompletion.toFixed(0)}%. Try archiving habits you do not need, and focus on consistently completing just 2 or 3 high-impact ones.`,
     });
   }
 

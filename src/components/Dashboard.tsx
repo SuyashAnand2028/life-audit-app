@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { DailyLog, WheelState } from '../types';
+import type { DailyLog, WheelState, ChecklistItem } from '../types';
 import { calculateEmpiricalWheel } from '../localAnalytics';
 import WheelOfLife from './WheelOfLife';
 import QuickLogger from './QuickLogger';
@@ -7,7 +7,19 @@ import AnalyticsPanel from './AnalyticsPanel';
 import AIAuditButton from './AIAuditButton';
 import ThemeToggle from './ThemeToggle';
 
-// 5 Days of realistic seed data to make the initial experience rich and engaging
+// 8 Default habits preloaded
+const INITIAL_HABITS: ChecklistItem[] = [
+  { id: 'h1', label: '30m Workout', active: true },
+  { id: 'h2', label: 'Read 10 Pages', active: true },
+  { id: 'h3', label: 'Drink 3L Water', active: true },
+  { id: 'h4', label: 'Meditate', active: true },
+  { id: 'h5', label: 'Stretch/Mobility', active: true },
+  { id: 'h6', label: 'Journaling', active: true },
+  { id: 'h7', label: 'No Sugar', active: true },
+  { id: 'h8', label: '8h Sleep', active: true },
+];
+
+// Seed logs with daily checklist entries demonstrating positive correlation to focus scores
 const INITIAL_LOGS: DailyLog[] = [
   {
     date: getPastDate(4),
@@ -26,7 +38,17 @@ const INITIAL_LOGS: DailyLog[] = [
     focus: 5,
     energy: 6,
     distractionFactor: 6,
-    notes: 'Slept poorly. Heavy distraction drag in the afternoon browsing feeds.',
+    checklist: [
+      { itemId: 'h1', completed: true },
+      { itemId: 'h2', completed: false },
+      { itemId: 'h3', completed: true },
+      { itemId: 'h4', completed: false },
+      { itemId: 'h5', completed: true },
+      { itemId: 'h6', completed: false },
+      { itemId: 'h7', completed: false },
+      { itemId: 'h8', completed: false },
+    ],
+    notes: 'Slept poorly. Heavy distraction drag. Only finished workout, water, and stretching.',
   },
   {
     date: getPastDate(3),
@@ -45,7 +67,17 @@ const INITIAL_LOGS: DailyLog[] = [
     focus: 8,
     energy: 8,
     distractionFactor: 3,
-    notes: 'Solid sleep, focus was sharp. Hit gym during routine hours.',
+    checklist: [
+      { itemId: 'h1', completed: true },
+      { itemId: 'h2', completed: true },
+      { itemId: 'h3', completed: true },
+      { itemId: 'h4', completed: false },
+      { itemId: 'h5', completed: true },
+      { itemId: 'h6', completed: true },
+      { itemId: 'h7', completed: false },
+      { itemId: 'h8', completed: true },
+    ],
+    notes: 'Solid sleep, focus was sharp. Hit gym and journaled. 6/8 habits done.',
   },
   {
     date: getPastDate(2),
@@ -62,7 +94,17 @@ const INITIAL_LOGS: DailyLog[] = [
     focus: 4,
     energy: 4,
     distractionFactor: 8,
-    notes: 'Extremely tired. Overworked to compensate but attention was completely scattered.',
+    checklist: [
+      { itemId: 'h1', completed: false },
+      { itemId: 'h2', completed: false },
+      { itemId: 'h3', completed: true },
+      { itemId: 'h4', completed: false },
+      { itemId: 'h5', completed: false },
+      { itemId: 'h6', completed: false },
+      { itemId: 'h7', completed: true },
+      { itemId: 'h8', completed: false },
+    ],
+    notes: 'Extremely tired. Overworked, skipped most habits. Heavy sugar intake.',
   },
   {
     date: getPastDate(1),
@@ -81,7 +123,17 @@ const INITIAL_LOGS: DailyLog[] = [
     focus: 9,
     energy: 9,
     distractionFactor: 2,
-    notes: 'Recovery day. Highly efficient working blocks, minimized mindless scrolling.',
+    checklist: [
+      { itemId: 'h1', completed: true },
+      { itemId: 'h2', completed: true },
+      { itemId: 'h3', completed: true },
+      { itemId: 'h4', completed: false },
+      { itemId: 'h5', completed: true },
+      { itemId: 'h6', completed: true },
+      { itemId: 'h7', completed: true },
+      { itemId: 'h8', completed: true },
+    ],
+    notes: 'Recovery day. Highly efficient working blocks, completed 7/8 habits. High clarity.',
   },
   {
     date: getPastDate(0),
@@ -99,7 +151,17 @@ const INITIAL_LOGS: DailyLog[] = [
     focus: 7,
     energy: 7,
     distractionFactor: 4,
-    notes: 'Stable focus. Kept a healthy balance between leisure and work tasks.',
+    checklist: [
+      { itemId: 'h1', completed: true },
+      { itemId: 'h2', completed: true },
+      { itemId: 'h3', completed: true },
+      { itemId: 'h4', completed: false },
+      { itemId: 'h5', completed: true },
+      { itemId: 'h6', completed: false },
+      { itemId: 'h7', completed: false },
+      { itemId: 'h8', completed: true },
+    ],
+    notes: 'Balanced day. Kept habits steady, sleep was restorative.',
   },
 ];
 
@@ -121,12 +183,14 @@ function getPastDate(daysAgo: number): string {
 export const Dashboard: React.FC = () => {
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [wheelSelf, setWheelSelf] = useState<WheelState>(INITIAL_WHEEL);
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [selectedDate, setSelectedDate] = useState(() => getPastDate(0));
 
   // Sync state with localStorage
   useEffect(() => {
     const savedLogs = localStorage.getItem('life_audit_logs');
     const savedWheel = localStorage.getItem('life_audit_wheel');
+    const savedChecklist = localStorage.getItem('life_audit_checklist_items');
 
     if (savedLogs) {
       setLogs(JSON.parse(savedLogs));
@@ -141,6 +205,13 @@ export const Dashboard: React.FC = () => {
       setWheelSelf(INITIAL_WHEEL);
       localStorage.setItem('life_audit_wheel', JSON.stringify(INITIAL_WHEEL));
     }
+
+    if (savedChecklist) {
+      setChecklistItems(JSON.parse(savedChecklist));
+    } else {
+      setChecklistItems(INITIAL_HABITS);
+      localStorage.setItem('life_audit_checklist_items', JSON.stringify(INITIAL_HABITS));
+    }
   }, []);
 
   const handleSaveLog = (updatedLog: DailyLog) => {
@@ -151,7 +222,6 @@ export const Dashboard: React.FC = () => {
     } else {
       newLogs.push(updatedLog);
     }
-    // Sort chronological
     newLogs.sort((a, b) => a.date.localeCompare(b.date));
     setLogs(newLogs);
     localStorage.setItem('life_audit_logs', JSON.stringify(newLogs));
@@ -162,12 +232,19 @@ export const Dashboard: React.FC = () => {
     localStorage.setItem('life_audit_wheel', JSON.stringify(newWheel));
   };
 
+  const handleUpdateChecklistItems = (newItems: ChecklistItem[]) => {
+    setChecklistItems(newItems);
+    localStorage.setItem('life_audit_checklist_items', JSON.stringify(newItems));
+  };
+
   const handleResetData = () => {
-    if (window.confirm('Are you sure you want to reset all tracking logs to seed default data?')) {
+    if (window.confirm('Are you sure you want to reset all tracking logs and habits to seed default data?')) {
       setLogs(INITIAL_LOGS);
       setWheelSelf(INITIAL_WHEEL);
+      setChecklistItems(INITIAL_HABITS);
       localStorage.setItem('life_audit_logs', JSON.stringify(INITIAL_LOGS));
       localStorage.setItem('life_audit_wheel', JSON.stringify(INITIAL_WHEEL));
+      localStorage.setItem('life_audit_checklist_items', JSON.stringify(INITIAL_HABITS));
     }
   };
 
@@ -182,7 +259,7 @@ export const Dashboard: React.FC = () => {
             <span style={{ color: 'var(--accent-purple)', fontWeight: 800 }}>⚡</span> Life Audit OS
           </h2>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            V1.0.0 • Offline Dashboard
+            V1.1.0 • Habit Checklist Edition
           </p>
         </div>
 
@@ -190,9 +267,9 @@ export const Dashboard: React.FC = () => {
           <div style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', fontSize: '0.85rem' }}>
             <strong style={{ color: 'var(--text-primary)' }}>Instructions:</strong>
             <ol style={{ paddingLeft: '1.25rem', marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', color: 'var(--text-secondary)' }}>
-              <li>Log time/money/focus on the right panels daily.</li>
-              <li>Drag the knobs on the **Wheel of Life** to map your subjective fulfillment.</li>
-              <li>Compare your subjective state (purple fill) against actual empirical logs (green dashed path).</li>
+              <li>Tick daily habits on the **Checklist** tab in the logger.</li>
+              <li>Add or edit habits inline to build your custom schedule.</li>
+              <li>Observe how habit consistency scores correlate with your Focus scores in the charts below.</li>
             </ol>
           </div>
         </nav>
@@ -249,6 +326,8 @@ export const Dashboard: React.FC = () => {
             onSave={handleSaveLog}
             selectedDate={selectedDate}
             setSelectedDate={setSelectedDate}
+            checklistItems={checklistItems}
+            onUpdateChecklistItems={handleUpdateChecklistItems}
           />
         </div>
 

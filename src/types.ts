@@ -13,6 +13,17 @@ export interface MoneyEntry {
   description: string;
 }
 
+export interface ChecklistItem {
+  id: string;
+  label: string;
+  active: boolean; // items can be archived if not active
+}
+
+export interface DailyChecklistEntry {
+  itemId: string;
+  completed: boolean;
+}
+
 export interface DailyLog {
   date: string; // YYYY-MM-DD
   time: TimeEntry[];
@@ -20,6 +31,7 @@ export interface DailyLog {
   focus: number; // 1 to 10
   energy: number; // 1 to 10
   distractionFactor: number; // 1 to 10
+  checklist: DailyChecklistEntry[];
   notes: string;
 }
 
@@ -35,4 +47,5 @@ export interface WheelState {
 export interface AuditDataState {
   logs: DailyLog[];
   wheelSelfAssessment: WheelState;
+  checklistItems: ChecklistItem[];
 }

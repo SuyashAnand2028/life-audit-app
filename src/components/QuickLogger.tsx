@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import type { DailyLog, MoneyEntry, TimeCategory, MoneyCategory, TimeEntry } from '../types';
+import type { DailyLog, MoneyEntry, TimeCategory, MoneyCategory, TimeEntry, ChecklistItem, DailyChecklistEntry } from '../types';
 
 interface QuickLoggerProps {
   logs: DailyLog[];
   onSave: (log: DailyLog) => void;
   selectedDate: string;
   setSelectedDate: (date: string) => void;
+  checklistItems: ChecklistItem[];
+  onUpdateChecklistItems: (items: ChecklistItem[]) => void;
 }
 
 export const QuickLogger: React.FC<QuickLoggerProps> = ({
@@ -13,8 +15,10 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({
   onSave,
   selectedDate,
   setSelectedDate,
+  checklistItems,
+  onUpdateChecklistItems,
 }) => {
-  const [activeTab, setActiveTab] = useState<'time' | 'money' | 'attention'>('time');
+  const [activeTab, setActiveTab] = useState<'time' | 'money' | 'attention' | 'checklist'>('time');
 
   // Sliders for Time Allocations
   const [sleep, setSleep] = useState(7.5);
@@ -35,6 +39,15 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({
   const [distractionFactor, setDistractionFactor] = useState(4);
   const [notes, setNotes] = useState('');
 
+  // Daily Checklist Completion
+  const [dailyChecklist, setDailyChecklist] = useState<DailyChecklistEntry[]>([]);
+
+  // Master Habit Manager UI states
+  const [showHabitManager, setShowHabitManager] = useState(false);
+  const [newHabitLabel, setNewHabitLabel] = useState('');
+  const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
+  const [editingLabel, setEditingLabel] = useState('');
+
   // Load existing log if date matches
   useEffect(() => {
     const existingLog = logs.find((l) => l.date === selectedDate);
@@ -47,12 +60,13 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({
       setLeisure(getHours('leisure'));
       setDistraction(getHours('distraction'));
 
-      // Load Money & Attention
+      // Load Money, Attention & Checklist
       setMoneyEntries(existingLog.money);
       setFocus(existingLog.focus);
       setEnergy(existingLog.energy);
       setDistractionFactor(existingLog.distractionFactor);
       setNotes(existingLog.notes);
+      setDailyChecklist(existingLog.checklist || []);
     } else {
       // Reset to defaults
       setSleep(7.5);
@@ -65,8 +79,29 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({
       setEnergy(7);
       setDistractionFactor(4);
       setNotes('');
+
+      // Build daily checklist from active master habits
+      const initialChecklist = checklistItems
+        .filter((item) => item.active)
+        .map((item) => ({ itemId: item.id, completed: false }));
+      setDailyChecklist(initialChecklist);
     }
-  }, [selectedDate, logs]);
+  }, [selectedDate, logs, checklistItems]);
+
+  // Adjust daily checklist items if master habits list is altered dynamically
+  useEffect(() => {
+    const existingLog = logs.find((l) => l.date === selectedDate);
+    if (!existingLog) {
+      const activeItems = checklistItems.filter((item) => item.active);
+      setDailyChecklist((prev) => {
+        const prevMap = new Map(prev.map((p) => [p.itemId, p.completed]));
+        return activeItems.map((item) => ({
+          itemId: item.id,
+          completed: prevMap.get(item.id) || false,
+        }));
+      });
+    }
+  }, [checklistItems, selectedDate, logs]);
 
   const totalTimeHours = sleep + work + routine + leisure + distraction;
 
@@ -90,6 +125,52 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({
     setMoneyEntries(moneyEntries.filter((m) => m.id !== id));
   };
 
+  const handleToggleChecklist = (itemId: string) => {
+    setDailyChecklist(
+      dailyChecklist.map((c) =>
+        c.itemId === itemId ? { ...c, completed: !c.completed } : c
+      )
+    );
+  };
+
+  // Master Habit Editor Handlers
+  const handleCreateHabit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newHabitLabel.trim()) return;
+
+    const newHabit: ChecklistItem = {
+      id: crypto.randomUUID(),
+      label: newHabitLabel.trim(),
+      active: true,
+    };
+
+    onUpdateChecklistItems([...checklistItems, newHabit]);
+    setNewHabitLabel('');
+  };
+
+  const handleToggleHabitActive = (id: string) => {
+    onUpdateChecklistItems(
+      checklistItems.map((item) =>
+        item.id === id ? { ...item, active: !item.active } : item
+      )
+    );
+  };
+
+  const handleStartEditing = (id: string, label: string) => {
+    setEditingHabitId(id);
+    setEditingLabel(label);
+  };
+
+  const handleSaveRename = (id: string) => {
+    if (!editingLabel.trim()) return;
+    onUpdateChecklistItems(
+      checklistItems.map((item) =>
+        item.id === id ? { ...item, label: editingLabel.trim() } : item
+      )
+    );
+    setEditingHabitId(null);
+  };
+
   const handleSave = () => {
     const timeEntries: TimeEntry[] = [
       { category: 'sleep', hours: sleep },
@@ -106,6 +187,7 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({
       focus,
       energy,
       distractionFactor,
+      checklist: dailyChecklist,
       notes: notes.trim(),
     };
 
@@ -143,6 +225,12 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({
           className={`tab-btn ${activeTab === 'attention' ? 'active' : ''}`}
         >
           Attention
+        </button>
+        <button
+          onClick={() => setActiveTab('checklist')}
+          className={`tab-btn ${activeTab === 'checklist' ? 'active' : ''}`}
+        >
+          Checklist
         </button>
       </div>
 
@@ -381,6 +469,162 @@ export const QuickLogger: React.FC<QuickLoggerProps> = ({
                 style={{ resize: 'none' }}
               />
             </div>
+          </div>
+        )}
+
+        {/* CHECKLIST TAB */}
+        {activeTab === 'checklist' && (
+          <div>
+            {!showHabitManager ? (
+              <div>
+                <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+                  {dailyChecklist.length === 0 ? (
+                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem 0', fontSize: '0.9rem' }}>
+                      No active habits defined. Click "Edit Habits" below to setup your list.
+                    </div>
+                  ) : (
+                    dailyChecklist.map((item) => {
+                      const master = checklistItems.find((m) => m.id === item.itemId);
+                      if (!master) return null;
+                      return (
+                        <label
+                          key={item.itemId}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                            padding: '0.5rem',
+                            background: 'rgba(255,255,255,0.02)',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.9rem',
+                            textDecoration: item.completed ? 'line-through' : 'none',
+                            color: item.completed ? 'var(--text-muted)' : 'var(--text-primary)',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={item.completed}
+                            onChange={() => handleToggleChecklist(item.itemId)}
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              accentColor: 'var(--accent-purple)',
+                              cursor: 'pointer',
+                            }}
+                          />
+                          <span>{master.label}</span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+
+                <button
+                  onClick={() => setShowHabitManager(true)}
+                  className="btn"
+                  style={{ width: '100%', fontSize: '0.8rem', padding: '0.5rem', justifyContent: 'center' }}
+                >
+                  ⚙️ Edit Checklist Habits
+                </button>
+              </div>
+            ) : (
+              <div>
+                {/* Habit Manager UI */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <h4 style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>Manage Master Checklist</h4>
+                  <button
+                    onClick={() => setShowHabitManager(false)}
+                    style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
+                  >
+                    Done
+                  </button>
+                </div>
+
+                <form onSubmit={handleCreateHabit} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                  <input
+                    type="text"
+                    placeholder="New habit label..."
+                    className="form-input"
+                    value={newHabitLabel}
+                    onChange={(e) => setNewHabitLabel(e.target.value)}
+                    style={{ padding: '0.4rem', fontSize: '0.85rem' }}
+                  />
+                  <button type="submit" className="btn btn-primary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>
+                    Add
+                  </button>
+                </form>
+
+                <div style={{ maxHeight: '140px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {checklistItems.map((item) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '0.4rem 0.5rem',
+                        background: 'rgba(0,0,0,0.1)',
+                        borderRadius: '4px',
+                        fontSize: '0.8rem',
+                      }}
+                    >
+                      {editingHabitId === item.id ? (
+                        <div style={{ display: 'flex', gap: '0.25rem', width: '100%' }}>
+                          <input
+                            type="text"
+                            value={editingLabel}
+                            onChange={(e) => setEditingLabel(e.target.value)}
+                            className="form-input"
+                            style={{ padding: '0.2rem', fontSize: '0.75rem' }}
+                          />
+                          <button
+                            onClick={() => handleSaveRename(item.id)}
+                            style={{ padding: '0.2rem 0.4rem', background: 'var(--accent-emerald)', border: 'none', borderRadius: '4px', color: '#fff', cursor: 'pointer' }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingHabitId(null)}
+                            style={{ padding: '0.2rem 0.4rem', background: 'var(--bg-tertiary)', border: 'none', borderRadius: '4px', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                          >
+                            X
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span style={{ color: item.active ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                            {item.label} {!item.active && '(Archived)'}
+                          </span>
+                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <button
+                              onClick={() => handleStartEditing(item.id, item.label)}
+                              style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.75rem' }}
+                              title="Rename"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => handleToggleHabitActive(item.id)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: item.active ? 'var(--accent-rose)' : 'var(--accent-emerald)',
+                                cursor: 'pointer',
+                                fontSize: '0.75rem',
+                              }}
+                              title={item.active ? 'Archive' : 'Restore'}
+                            >
+                              {item.active ? 'Archive' : 'Restore'}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
