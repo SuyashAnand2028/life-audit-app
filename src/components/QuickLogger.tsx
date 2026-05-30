@@ -1,0 +1,400 @@
+import React, { useState, useEffect } from 'react';
+import type { DailyLog, MoneyEntry, TimeCategory, MoneyCategory, TimeEntry } from '../types';
+
+interface QuickLoggerProps {
+  logs: DailyLog[];
+  onSave: (log: DailyLog) => void;
+  selectedDate: string;
+  setSelectedDate: (date: string) => void;
+}
+
+export const QuickLogger: React.FC<QuickLoggerProps> = ({
+  logs,
+  onSave,
+  selectedDate,
+  setSelectedDate,
+}) => {
+  const [activeTab, setActiveTab] = useState<'time' | 'money' | 'attention'>('time');
+
+  // Sliders for Time Allocations
+  const [sleep, setSleep] = useState(7.5);
+  const [work, setWork] = useState(8);
+  const [routine, setRoutine] = useState(2);
+  const [leisure, setLeisure] = useState(3.5);
+  const [distraction, setDistraction] = useState(3);
+
+  // Money Entries for the Day
+  const [moneyEntries, setMoneyEntries] = useState<MoneyEntry[]>([]);
+  const [newAmount, setNewAmount] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [newCat, setNewCat] = useState<MoneyCategory>('needs');
+
+  // Attention Metrics
+  const [focus, setFocus] = useState(7);
+  const [energy, setEnergy] = useState(7);
+  const [distractionFactor, setDistractionFactor] = useState(4);
+  const [notes, setNotes] = useState('');
+
+  // Load existing log if date matches
+  useEffect(() => {
+    const existingLog = logs.find((l) => l.date === selectedDate);
+    if (existingLog) {
+      // Load Time
+      const getHours = (cat: TimeCategory) => existingLog.time.find((t) => t.category === cat)?.hours ?? 0;
+      setSleep(getHours('sleep'));
+      setWork(getHours('work'));
+      setRoutine(getHours('routine'));
+      setLeisure(getHours('leisure'));
+      setDistraction(getHours('distraction'));
+
+      // Load Money & Attention
+      setMoneyEntries(existingLog.money);
+      setFocus(existingLog.focus);
+      setEnergy(existingLog.energy);
+      setDistractionFactor(existingLog.distractionFactor);
+      setNotes(existingLog.notes);
+    } else {
+      // Reset to defaults
+      setSleep(7.5);
+      setWork(8);
+      setRoutine(2);
+      setLeisure(3.5);
+      setDistraction(3);
+      setMoneyEntries([]);
+      setFocus(7);
+      setEnergy(7);
+      setDistractionFactor(4);
+      setNotes('');
+    }
+  }, [selectedDate, logs]);
+
+  const totalTimeHours = sleep + work + routine + leisure + distraction;
+
+  const handleAddExpense = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAmount || isNaN(Number(newAmount))) return;
+
+    const newEntry: MoneyEntry = {
+      id: crypto.randomUUID(),
+      category: newCat,
+      amount: parseFloat(newAmount),
+      description: newDesc.trim() || 'Expense',
+    };
+
+    setMoneyEntries([...moneyEntries, newEntry]);
+    setNewAmount('');
+    setNewDesc('');
+  };
+
+  const handleRemoveExpense = (id: string) => {
+    setMoneyEntries(moneyEntries.filter((m) => m.id !== id));
+  };
+
+  const handleSave = () => {
+    const timeEntries: TimeEntry[] = [
+      { category: 'sleep', hours: sleep },
+      { category: 'work', hours: work },
+      { category: 'routine', hours: routine },
+      { category: 'leisure', hours: leisure },
+      { category: 'distraction', hours: distraction },
+    ];
+
+    const finalLog: DailyLog = {
+      date: selectedDate,
+      time: timeEntries,
+      money: moneyEntries,
+      focus,
+      energy,
+      distractionFactor,
+      notes: notes.trim(),
+    };
+
+    onSave(finalLog);
+  };
+
+  return (
+    <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 style={{ fontSize: '1.25rem' }}>Daily Resource Log</h2>
+        <input
+          type="date"
+          className="form-input"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          style={{ width: 'auto', padding: '0.4rem 0.6rem' }}
+        />
+      </div>
+
+      <div className="tab-headers">
+        <button
+          onClick={() => setActiveTab('time')}
+          className={`tab-btn ${activeTab === 'time' ? 'active' : ''}`}
+        >
+          Time
+        </button>
+        <button
+          onClick={() => setActiveTab('money')}
+          className={`tab-btn ${activeTab === 'money' ? 'active' : ''}`}
+        >
+          Money
+        </button>
+        <button
+          onClick={() => setActiveTab('attention')}
+          className={`tab-btn ${activeTab === 'attention' ? 'active' : ''}`}
+        >
+          Attention
+        </button>
+      </div>
+
+      <div style={{ minHeight: '260px' }}>
+        {/* TIME AUDIT TAB */}
+        {activeTab === 'time' && (
+          <div>
+            <div className="slider-container">
+              <div className="slider-header">
+                <span className="form-label">Sleep (Rest & Recovery)</span>
+                <span className="slider-val">{sleep}h</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="16"
+                step="0.5"
+                value={sleep}
+                onChange={(e) => setSleep(parseFloat(e.target.value))}
+                className="slider-input"
+              />
+            </div>
+
+            <div className="slider-container">
+              <div className="slider-header">
+                <span className="form-label">Work & Studies (Leverage)</span>
+                <span className="slider-val">{work}h</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="16"
+                step="0.5"
+                value={work}
+                onChange={(e) => setWork(parseFloat(e.target.value))}
+                className="slider-input"
+              />
+            </div>
+
+            <div className="slider-container">
+              <div className="slider-header">
+                <span className="form-label">Routine (Fitness, Cooking, Chores)</span>
+                <span className="slider-val">{routine}h</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="16"
+                step="0.5"
+                value={routine}
+                onChange={(e) => setRoutine(parseFloat(e.target.value))}
+                className="slider-input"
+              />
+            </div>
+
+            <div className="slider-container">
+              <div className="slider-header">
+                <span className="form-label">Active Leisure (Social, Hobbies)</span>
+                <span className="slider-val">{leisure}h</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="16"
+                step="0.5"
+                value={leisure}
+                onChange={(e) => setLeisure(parseFloat(e.target.value))}
+                className="slider-input"
+              />
+            </div>
+
+            <div className="slider-container">
+              <div className="slider-header">
+                <span className="form-label">Passive Distraction (Social Feed, TV)</span>
+                <span className="slider-val">{distraction}h</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="16"
+                step="0.5"
+                value={distraction}
+                onChange={(e) => setDistraction(parseFloat(e.target.value))}
+                className="slider-input"
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem', fontSize: '0.85rem' }}>
+              <span style={{ color: varTotalColor(totalTimeHours) }}>
+                Total Allocated: {totalTimeHours}h / 24h
+              </span>
+              {totalTimeHours > 24 && (
+                <span style={{ color: 'var(--accent-rose)', fontWeight: 'bold' }}>
+                  ⚠️ Hours exceed 24!
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* MONEY AUDIT TAB */}
+        {activeTab === 'money' && (
+          <div>
+            <form onSubmit={handleAddExpense} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+              <input
+                type="number"
+                placeholder="Amount"
+                className="form-input"
+                value={newAmount}
+                onChange={(e) => setNewAmount(e.target.value)}
+                style={{ flex: 1 }}
+                required
+              />
+              <input
+                type="text"
+                placeholder="Description"
+                className="form-input"
+                value={newDesc}
+                onChange={(e) => setNewDesc(e.target.value)}
+                style={{ flex: 2 }}
+              />
+              <select
+                className="form-input"
+                value={newCat}
+                onChange={(e) => setNewCat(e.target.value as MoneyCategory)}
+                style={{ flex: 1.5, background: 'var(--bg-primary)' }}
+              >
+                <option value="needs">Need</option>
+                <option value="wants">Want</option>
+                <option value="investments">Investment</option>
+              </select>
+              <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem 1rem' }}>
+                + Add
+              </button>
+            </form>
+
+            <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {moneyEntries.length === 0 ? (
+                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem 0' }}>
+                  No transactions recorded today.
+                </div>
+              ) : (
+                moneyEntries.map((m) => (
+                  <div key={m.id} className="log-item" style={{ fontSize: '0.9rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          textTransform: 'uppercase',
+                          fontWeight: 'bold',
+                          padding: '0.15rem 0.35rem',
+                          borderRadius: '4px',
+                          background: m.category === 'needs' ? 'rgba(59, 130, 246, 0.1)' : m.category === 'wants' ? 'rgba(244, 63, 94, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                          color: m.category === 'needs' ? 'var(--accent-blue)' : m.category === 'wants' ? 'var(--accent-rose)' : 'var(--accent-emerald)',
+                        }}
+                      >
+                        {m.category}
+                      </span>
+                      <span>{m.description}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 'bold' }}>${m.amount.toFixed(2)}</span>
+                      <button
+                        onClick={() => handleRemoveExpense(m.id)}
+                        style={{ background: 'none', border: 'none', color: 'var(--accent-rose)', cursor: 'pointer', fontSize: '1rem' }}
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ATTENTION AUDIT TAB */}
+        {activeTab === 'attention' && (
+          <div>
+            <div className="slider-container">
+              <div className="slider-header">
+                <span className="form-label">Focus Score (Clarity & Flow)</span>
+                <span className="slider-val">{focus}/10</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                step="1"
+                value={focus}
+                onChange={(e) => setFocus(parseInt(e.target.value))}
+                className="slider-input"
+              />
+            </div>
+
+            <div className="slider-container">
+              <div className="slider-header">
+                <span className="form-label">Energy Level (Physical/Mental Drive)</span>
+                <span className="slider-val">{energy}/10</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                step="1"
+                value={energy}
+                onChange={(e) => setEnergy(parseInt(e.target.value))}
+                className="slider-input"
+              />
+            </div>
+
+            <div className="slider-container">
+              <div className="slider-header">
+                <span className="form-label">Distraction Drag (How pulled away you felt)</span>
+                <span className="slider-val">{distractionFactor}/10</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                step="1"
+                value={distractionFactor}
+                onChange={(e) => setDistractionFactor(parseInt(e.target.value))}
+                className="slider-input"
+              />
+            </div>
+
+            <div className="form-group">
+              <span className="form-label">Daily Reflection Notes</span>
+              <textarea
+                className="form-input"
+                rows={3}
+                placeholder="What triggered distractions today? What went exceptionally well?"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                style={{ resize: 'none' }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <button onClick={handleSave} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+        Save Entry for {selectedDate}
+      </button>
+    </div>
+  );
+};
+
+function varTotalColor(hours: number): string {
+  if (hours > 24) return 'var(--accent-rose)';
+  if (hours === 24) return 'var(--accent-emerald)';
+  return 'var(--text-secondary)';
+}
+export default QuickLogger;
