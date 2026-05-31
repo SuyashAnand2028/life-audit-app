@@ -1,0 +1,130 @@
+{
+  "users": [
+    {
+      "id": "4d022823-3ab0-4218-95d4-ba73066107a0",
+      "email": "suyashanand20@gmail.com",
+      "passwordHash": "$2a$10$bbfPC/XQFFc4Z4mk2ZHM9eZFOP/x.w.bxkPDng2Rk.W2PEwenfkrK",
+      "createdAt": "2026-05-31T07:52:00.149Z"
+    }
+  ],
+  "audits": {
+    "4d022823-3ab0-4218-95d4-ba73066107a0": {
+      "logs": [
+        {
+          "date": "2026-05-31",
+          "time": [
+            {
+              "category": "sleep",
+              "hours": 5
+            },
+            {
+              "category": "work",
+              "hours": 13
+            },
+            {
+              "category": "routine",
+              "hours": 3
+            },
+            {
+              "category": "leisure",
+              "hours": 3
+            },
+            {
+              "category": "distraction",
+              "hours": 0
+            }
+          ],
+          "money": [],
+          "focus": 9,
+          "energy": 9,
+          "distractionFactor": 1,
+          "checklist": [
+            {
+              "itemId": "h1",
+              "completed": true
+            },
+            {
+              "itemId": "h2",
+              "completed": false
+            },
+            {
+              "itemId": "h3",
+              "completed": true
+            },
+            {
+              "itemId": "h4",
+              "completed": true
+            },
+            {
+              "itemId": "h5",
+              "completed": false
+            },
+            {
+              "itemId": "h6",
+              "completed": true
+            },
+            {
+              "itemId": "h7",
+              "completed": false
+            },
+            {
+              "itemId": "h8",
+              "completed": true
+            }
+          ],
+          "notes": ""
+        }
+      ],
+      "wheelSelfAssessment": {
+        "health": 6,
+        "wealth": 5,
+        "career": 6,
+        "relationships": 6,
+        "leisure": 6,
+        "growth": 6
+      },
+      "checklistItems": [
+        {
+          "id": "h1",
+          "label": "30m Workout",
+          "active": true
+        },
+        {
+          "id": "h2",
+          "label": "Read 10 Pages",
+          "active": true
+        },
+        {
+          "id": "h3",
+          "label": "Drink 3L Water",
+          "active": true
+        },
+        {
+          "id": "h4",
+          "label": "Meditate",
+          "active": true
+        },
+        {
+          "id": "h5",
+          "label": "Stretch/Mobility",
+          "active": true
+        },
+        {
+          "id": "h6",
+          "label": "Journaling",
+          "active": true
+        },
+        {
+          "id": "h7",
+          "label": "No Sugar",
+          "active": true
+        },
+        {
+          "id": "h8",
+          "label": "8h Sleep",
+          "active": true
+        }
+      ]
+    }
+  }
+}

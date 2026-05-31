@@ -17,7 +17,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_BASE_URL = 'http://localhost:5000'; // Local development server
+// Use relative path in production (Vercel) to hit the serverless functions
+const API_BASE_URL = import.meta.env.PROD ? '' : 'http://localhost:5000';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);

@@ -132,6 +132,5 @@ app.post('/api/audit/habits', authenticateToken, (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Life Audit Server listening on http://localhost:${PORT}`);
-});
+// Export for Vercel Serverless
+export default app;

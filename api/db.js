@@ -5,7 +5,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DB_PATH = path.join(__dirname, 'database.json');
+// Use /tmp on Vercel because the regular filesystem is read-only
+const DB_PATH = process.env.VERCEL ? path.join('/tmp', 'database.json') : path.join(__dirname, 'database.json');
 
 // Initial state of the database file
 const DEFAULT_DB = {
